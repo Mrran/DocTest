@@ -2,31 +2,18 @@
 using DocumentFormat.OpenXml.Wordprocessing;
 using DocumentFormat.OpenXml;
 using System.IO;
-using System.Text;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using Paragraph = DocumentFormat.OpenXml.Wordprocessing.Paragraph;
 using Run = DocumentFormat.OpenXml.Wordprocessing.Run;
 using Drawing = DocumentFormat.OpenXml.Wordprocessing.Drawing;
-using DocumentFormat.OpenXml.Vml;
 using System.Drawing.Imaging;
 using System.Drawing;
 using Color = System.Drawing.Color;
 using Pen = System.Drawing.Pen;
 using Brush = System.Drawing.Brush;
 
-namespace WpfApp1
+namespace MyExport
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
         public MainWindow()
@@ -36,17 +23,14 @@ namespace WpfApp1
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-
             string imagePath = "barchart.png";
-            string docxPath = "DocumentWithBarChart.docx";
+            string docxPath = "test.docx";  // 指定已有的DOCX文件路径
 
             // 生成柱状图
             CreateBarChart(imagePath);
 
-            // 创建 DOCX 文件并插入柱状图
-            CreateDocxWithBarChart(docxPath, imagePath);
-
-
+            // 打开已有的 DOCX 文件并附加内容
+            AppendToExistingDocx(docxPath, imagePath);
         }
 
         public void CreateBarChart(string imagePath)
@@ -77,30 +61,29 @@ namespace WpfApp1
             bmp.Save(imagePath, ImageFormat.Png);
         }
 
-        public void CreateDocxWithBarChart(string docxPath, string imagePath)
+        public void AppendToExistingDocx(string docxPath, string imagePath)
         {
-            // 创建一个新的 Word 文档
-            using (WordprocessingDocument wordDocument = WordprocessingDocument.Create(docxPath, DocumentFormat.OpenXml.WordprocessingDocumentType.Document))
+            // 打开已有的 Word 文档
+            using (WordprocessingDocument wordDocument = WordprocessingDocument.Open(docxPath, true))
             {
-                // 添加主文档部分
-                MainDocumentPart mainPart = wordDocument.AddMainDocumentPart();
-                mainPart.Document = new Document();
-                Body body = new Body();
-                mainPart.Document.Append(body);
+                Body body = wordDocument.MainDocumentPart.Document.Body;
 
                 // 添加段落
                 Paragraph para = new Paragraph(new Run(new Text("下面是生成的柱状图：")));
                 body.AppendChild(para);
 
                 // 添加柱状图图片
-                ImagePart imagePart = mainPart.AddImagePart(ImagePartType.Png);
+                ImagePart imagePart = wordDocument.MainDocumentPart.AddImagePart(ImagePartType.Png);
                 using (FileStream stream = new FileStream(imagePath, FileMode.Open))
                 {
                     imagePart.FeedData(stream);
                 }
 
                 // 创建图片元素并插入到文档中
-                AddImageToBody(wordDocument, mainPart.GetIdOfPart(imagePart));
+                AddImageToBody(wordDocument, wordDocument.MainDocumentPart.GetIdOfPart(imagePart));
+
+                // 保存文档
+                wordDocument.MainDocumentPart.Document.Save();
             }
         }
 
@@ -153,6 +136,5 @@ namespace WpfApp1
 
             wordDoc.MainDocumentPart.Document.Body.AppendChild(new Paragraph(new Run(element)));
         }
-
     }
 }
