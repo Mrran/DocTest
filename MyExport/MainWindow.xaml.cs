@@ -19,6 +19,9 @@ using LiveCharts;
 using System.Windows.Media.Imaging;
 using Size = System.Windows.Size;
 using System.Windows.Media;
+using LiveCharts.Definitions.Charts;
+using System.Windows.Controls;
+using Point = System.Windows.Point;
 
 namespace MyExport
 {
@@ -31,15 +34,63 @@ namespace MyExport
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            string imagePath = "barchart.png";
+            string imagePath = "barchart.jpg";
             string docxPath = "test.docx";  // 指定已有的DOCX文件路径
 
             // 生成柱状图
-            CreateBarChart(imagePath);
+            //CreateBarChart(imagePath);
 
             // 打开已有的 DOCX 文件并附加内容
-            AppendToExistingDocx(docxPath, imagePath);
+            //AppendToExistingDocx(docxPath, imagePath);
+
+            BuildPngOnClick(sender, e);
         }
+
+
+        private void BuildPngOnClick(object sender, RoutedEventArgs e)
+        {
+            var myChart = new LiveCharts.Wpf.CartesianChart
+            {
+                DisableAnimations = true,
+                Width = 600,
+                Height = 200,
+                Series = new SeriesCollection
+                {
+                    new LineSeries
+                    {
+                        Values = new ChartValues<double> {1, 6, 7, 2, 9, 3, 6, 5}
+                    }
+                }
+            };
+
+            var viewbox = new Viewbox();
+            viewbox.Child = myChart;
+            viewbox.Measure(myChart.RenderSize);
+            viewbox.Arrange(new Rect(new Point(0, 0), myChart.RenderSize));
+            myChart.Update(true, true); //force chart redraw
+            viewbox.UpdateLayout();
+
+            SaveToPng(myChart, "chart.png");
+            //png file was created at the root directory.
+        }
+
+        private void SaveToPng(FrameworkElement visual, string fileName)
+        {
+            var encoder = new PngBitmapEncoder();
+            EncodeVisual(visual, fileName, encoder);
+        }
+
+        private static void EncodeVisual(FrameworkElement visual, string fileName, BitmapEncoder encoder)
+        {
+            var bitmap = new RenderTargetBitmap((int)visual.ActualWidth, (int)visual.ActualHeight, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(visual);
+            var frame = BitmapFrame.Create(bitmap);
+            encoder.Frames.Add(frame);
+            using (var stream = File.Create(fileName)) encoder.Save(stream);
+        }
+
+
+
 
         public void CreateBarChart(string imagePath)
         {
@@ -52,13 +103,13 @@ namespace MyExport
 
             // 创建数据系列
             var seriesCollection = new SeriesCollection
-            {
-                new ColumnSeries
-                {
-                    Title = "2024",
-                    Values = new ChartValues<double> { 10, 50, 39, 50 }
-                }
-            };
+    {
+        new ColumnSeries
+        {
+            Title = "2024",
+            Values = new ChartValues<double> { 10, 50, 39, 50 }
+        }
+    };
 
             // 添加数据到柱状图
             cartesianChart.Series = seriesCollection;
@@ -92,6 +143,7 @@ namespace MyExport
                 cartesianChart.InvalidateVisual();
             }));
 
+
             // 延迟以确保渲染完成
             System.Threading.Thread.Sleep(100);
 
@@ -99,10 +151,13 @@ namespace MyExport
             var renderBitmap = new RenderTargetBitmap((int)cartesianChart.Width, (int)cartesianChart.Height, 96d, 96d, PixelFormats.Pbgra32);
             renderBitmap.Render(cartesianChart);
 
+            // 转换为不透明的格式（JPG不支持透明度）
+            var bitmapSource = new FormatConvertedBitmap(renderBitmap, PixelFormats.Bgr24, null, 0);
+
             using (var fileStream = new FileStream(imagePath, FileMode.Create))
             {
-                var encoder = new PngBitmapEncoder();
-                encoder.Frames.Add(BitmapFrame.Create(renderBitmap));
+                var encoder = new JpegBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(bitmapSource));
                 encoder.Save(fileStream);
             }
 
