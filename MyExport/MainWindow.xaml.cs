@@ -11,6 +11,14 @@ using System.Drawing;
 using Color = System.Drawing.Color;
 using Pen = System.Drawing.Pen;
 using Brush = System.Drawing.Brush;
+using System;
+using Font = System.Drawing.Font;
+using System.Drawing.Drawing2D;
+using LiveCharts.Wpf;
+using LiveCharts;
+using System.Windows.Media.Imaging;
+using Size = System.Windows.Size;
+using System.Windows.Media;
 
 namespace MyExport
 {
@@ -35,30 +43,70 @@ namespace MyExport
 
         public void CreateBarChart(string imagePath)
         {
-            int width = 500;
-            int height = 300;
-            Bitmap bmp = new Bitmap(width, height);
-            using (Graphics g = Graphics.FromImage(bmp))
+            // 创建一个柱状图
+            var cartesianChart = new CartesianChart
             {
-                g.Clear(Color.White);
-                Pen pen = new Pen(Color.Black);
-                Brush brush = new SolidBrush(Color.Blue);
+                Width = 600,
+                Height = 400
+            };
 
-                // 示例数据
-                int[] data = { 10, 20, 30, 40, 50 };
-                int barWidth = 40;
-                int spacing = 20;
-                int maxValue = 50;
-
-                for (int i = 0; i < data.Length; i++)
+            // 创建数据系列
+            var seriesCollection = new SeriesCollection
+            {
+                new ColumnSeries
                 {
-                    int barHeight = (data[i] * (height - 50)) / maxValue;
-                    g.FillRectangle(brush, spacing + i * (barWidth + spacing), height - barHeight - 30, barWidth, barHeight);
-                    g.DrawRectangle(pen, spacing + i * (barWidth + spacing), height - barHeight - 30, barWidth, barHeight);
+                    Title = "2024",
+                    Values = new ChartValues<double> { 10, 50, 39, 50 }
                 }
+            };
+
+            // 添加数据到柱状图
+            cartesianChart.Series = seriesCollection;
+
+            // 添加X轴标签
+            cartesianChart.AxisX.Add(new Axis
+            {
+                Title = "Categories",
+                Labels = new[] { "Category 1", "Category 2", "Category 3", "Category 4" }
+            });
+
+            // 添加Y轴
+            cartesianChart.AxisY.Add(new Axis
+            {
+                Title = "Values",
+                LabelFormatter = value => value.ToString("N")
+            });
+
+            // 将柱状图添加到窗口内容中（如果需要显示）
+            this.Content = cartesianChart;
+
+            // 确保图表已经正确布局并渲染
+            cartesianChart.Measure(new Size(cartesianChart.Width, cartesianChart.Height));
+            cartesianChart.Arrange(new Rect(new Size(cartesianChart.Width, cartesianChart.Height)));
+            cartesianChart.UpdateLayout(); // 强制更新布局
+
+            // 等待布局更新完成
+            cartesianChart.Dispatcher.Invoke(System.Windows.Threading.DispatcherPriority.Background, new Action(() =>
+            {
+                cartesianChart.UpdateLayout();
+                cartesianChart.InvalidateVisual();
+            }));
+
+            // 延迟以确保渲染完成
+            System.Threading.Thread.Sleep(100);
+
+            // 渲染并保存为图片
+            var renderBitmap = new RenderTargetBitmap((int)cartesianChart.Width, (int)cartesianChart.Height, 96d, 96d, PixelFormats.Pbgra32);
+            renderBitmap.Render(cartesianChart);
+
+            using (var fileStream = new FileStream(imagePath, FileMode.Create))
+            {
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(renderBitmap));
+                encoder.Save(fileStream);
             }
 
-            bmp.Save(imagePath, ImageFormat.Png);
+            MessageBox.Show($"柱状图已保存到 {imagePath}", "保存成功", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         public void AppendToExistingDocx(string docxPath, string imagePath)
