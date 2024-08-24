@@ -22,6 +22,10 @@ using System.Windows.Media;
 using LiveCharts.Definitions.Charts;
 using System.Windows.Controls;
 using Point = System.Windows.Point;
+using System.Windows.Media.Media3D;
+using System.Windows.Shapes;
+using Separator = LiveCharts.Wpf.Separator;
+using Brushes = System.Windows.Media.Brushes;
 
 namespace MyExport
 {
@@ -34,134 +38,73 @@ namespace MyExport
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            string imagePath = "barchart.jpg";
+            string imagePath = "barchart.png";
             string docxPath = "test.docx";  // 指定已有的DOCX文件路径
 
-            // 生成柱状图
-            //CreateBarChart(imagePath);
-
-            // 打开已有的 DOCX 文件并附加内容
-            //AppendToExistingDocx(docxPath, imagePath);
-
             BuildPngOnClick(sender, e);
+            AppendToExistingDocx(docxPath, imagePath);
         }
-
 
         private void BuildPngOnClick(object sender, RoutedEventArgs e)
         {
-            var myChart = new LiveCharts.Wpf.CartesianChart
+            var myChart = new CartesianChart
             {
                 DisableAnimations = true,
                 Width = 600,
                 Height = 200,
                 Series = new SeriesCollection
                 {
-                    new LineSeries
+                    new ColumnSeries
                     {
+                        DataLabels =  true,
                         Values = new ChartValues<double> {1, 6, 7, 2, 9, 3, 6, 5}
+                    }
+                },
+                AxisX = new AxesCollection
+                {
+                    new Axis
+                    {
+                        Title = "X Axis",
+                        Labels = new[] {"A", "B", "C", "D", "E", "F", "G", "H"},
+                        Position = AxisPosition.LeftBottom, // 这表明这个轴是X轴，并且位于底部
+                        Separator = new Separator
+                        {
+                            IsEnabled = true, // 隐藏网格线
+                            Stroke = new SolidColorBrush(Colors.Gray), // X轴线条颜色
+                            StrokeThickness = 0.5 // X轴线条粗细
+                        },
+                        
+                    }
+                },
+                AxisY = new AxesCollection
+                {
+                    new Axis
+                    {
+                        Title = "Y Axis",
+                        LabelFormatter = value => value.ToString("N"),
+                        Separator = new Separator
+                        {
+                            IsEnabled = true, // 隐藏网格线
+                            Stroke = new SolidColorBrush(Colors.Gray), // X轴线条颜色
+                            StrokeThickness = 0.5 // X轴线条粗细
+                        },
                     }
                 }
             };
 
             var viewbox = new Viewbox();
             viewbox.Child = myChart;
-            viewbox.Measure(myChart.RenderSize);
-            viewbox.Arrange(new Rect(new Point(0, 0), myChart.RenderSize));
-            myChart.Update(true, true); //force chart redraw
+            viewbox.Measure(new Size(myChart.Width, myChart.Height));
+            viewbox.Arrange(new Rect(new Point(0, 0), new Size(myChart.Width, myChart.Height)));
+            myChart.Update(true, true); // 强制重绘
             viewbox.UpdateLayout();
 
-            SaveToPng(myChart, "chart.png");
-            //png file was created at the root directory.
-        }
-
-        private void SaveToPng(FrameworkElement visual, string fileName)
-        {
             var encoder = new PngBitmapEncoder();
-            EncodeVisual(visual, fileName, encoder);
-        }
-
-        private static void EncodeVisual(FrameworkElement visual, string fileName, BitmapEncoder encoder)
-        {
-            var bitmap = new RenderTargetBitmap((int)visual.ActualWidth, (int)visual.ActualHeight, 96, 96, PixelFormats.Pbgra32);
-            bitmap.Render(visual);
+            var bitmap = new RenderTargetBitmap((int)myChart.ActualWidth, (int)myChart.ActualHeight, 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(viewbox);
             var frame = BitmapFrame.Create(bitmap);
             encoder.Frames.Add(frame);
-            using (var stream = File.Create(fileName)) encoder.Save(stream);
-        }
-
-
-
-
-        public void CreateBarChart(string imagePath)
-        {
-            // 创建一个柱状图
-            var cartesianChart = new CartesianChart
-            {
-                Width = 600,
-                Height = 400
-            };
-
-            // 创建数据系列
-            var seriesCollection = new SeriesCollection
-    {
-        new ColumnSeries
-        {
-            Title = "2024",
-            Values = new ChartValues<double> { 10, 50, 39, 50 }
-        }
-    };
-
-            // 添加数据到柱状图
-            cartesianChart.Series = seriesCollection;
-
-            // 添加X轴标签
-            cartesianChart.AxisX.Add(new Axis
-            {
-                Title = "Categories",
-                Labels = new[] { "Category 1", "Category 2", "Category 3", "Category 4" }
-            });
-
-            // 添加Y轴
-            cartesianChart.AxisY.Add(new Axis
-            {
-                Title = "Values",
-                LabelFormatter = value => value.ToString("N")
-            });
-
-            // 将柱状图添加到窗口内容中（如果需要显示）
-            this.Content = cartesianChart;
-
-            // 确保图表已经正确布局并渲染
-            cartesianChart.Measure(new Size(cartesianChart.Width, cartesianChart.Height));
-            cartesianChart.Arrange(new Rect(new Size(cartesianChart.Width, cartesianChart.Height)));
-            cartesianChart.UpdateLayout(); // 强制更新布局
-
-            // 等待布局更新完成
-            cartesianChart.Dispatcher.Invoke(System.Windows.Threading.DispatcherPriority.Background, new Action(() =>
-            {
-                cartesianChart.UpdateLayout();
-                cartesianChart.InvalidateVisual();
-            }));
-
-
-            // 延迟以确保渲染完成
-            System.Threading.Thread.Sleep(100);
-
-            // 渲染并保存为图片
-            var renderBitmap = new RenderTargetBitmap((int)cartesianChart.Width, (int)cartesianChart.Height, 96d, 96d, PixelFormats.Pbgra32);
-            renderBitmap.Render(cartesianChart);
-
-            // 转换为不透明的格式（JPG不支持透明度）
-            var bitmapSource = new FormatConvertedBitmap(renderBitmap, PixelFormats.Bgr24, null, 0);
-
-            using (var fileStream = new FileStream(imagePath, FileMode.Create))
-            {
-                var encoder = new JpegBitmapEncoder();
-                encoder.Frames.Add(BitmapFrame.Create(bitmapSource));
-                encoder.Save(fileStream);
-            }
-
-            MessageBox.Show($"柱状图已保存到 {imagePath}", "保存成功", MessageBoxButton.OK, MessageBoxImage.Information);
+            using (var stream = File.Create("barchart.png")) encoder.Save(stream);
         }
 
         public void AppendToExistingDocx(string docxPath, string imagePath)
